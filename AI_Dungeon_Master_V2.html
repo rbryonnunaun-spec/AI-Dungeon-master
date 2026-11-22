@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#171923">
+<title>AI Dungeon Master — Reference Library V2</title>
+<style>
+:root{color-scheme:dark;--bg:#11131a;--panel:#1b1e29;--line:#303545;--muted:#aab1c2;--accent:#c7a56a;--text:#f4f2ed;--link:#8fc7ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:1180px;margin:auto;padding:18px 14px 44px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+header .mark{font-size:30px}h1{font-size:21px;margin:0}header p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:15px;margin:12px 0}
+h2{font-size:16px;margin:0 0 11px}
+button,.file-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--accent);color:#171717;border:0;border-radius:10px;padding:11px 14px;font-weight:700;font-size:14px;cursor:pointer}
+button.secondary{background:#34394a;color:var(--text)}button:disabled{opacity:.4;cursor:not-allowed}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+input[type=search],input[type=text]{width:100%;background:#10131b;border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:16px}
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.muted{color:var(--muted);font-size:13px;line-height:1.55}
+#status{margin-top:11px;color:#e1c994;font-size:14px;line-height:1.5}
+#bookInfo{display:none;margin-top:12px;padding:11px;background:#141722;border-radius:9px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+#results,#outlineList{max-height:360px;overflow:auto}
+.result,.outline-item{padding:10px;border-bottom:1px solid var(--line);cursor:pointer}
+.result:last-child,.outline-item:last-child{border:0}
+.result strong{color:var(--accent);font-size:13px}.result p{margin:5px 0 0;font-size:14px;line-height:1.5;white-space:pre-wrap}
+#viewerWrap{display:none;background:#30323b;border-radius:10px;padding:9px;text-align:center;overflow:auto;position:relative}
+#pageStage{position:relative;display:inline-block;max-width:100%;vertical-align:top}
+canvas{display:block;max-width:100%;height:auto;background:white;box-shadow:0 2px 12px #0008}
+#linkLayer{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.pdf-link{position:absolute;display:block;pointer-events:auto;border:1px solid transparent;border-radius:2px;background:rgba(100,170,255,.025)}
+.pdf-link:hover,.pdf-link:focus{background:rgba(100,170,255,.18);border-color:rgba(100,170,255,.8);outline:1px solid rgba(100,170,255,.45)}
+#pageControls{display:none;align-items:center;justify-content:center;margin:10px 0;gap:9px;flex-wrap:wrap}
+#pageLabel{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+#pageText{margin-top:11px;white-space:pre-wrap;max-height:260px;overflow:auto}
+.note{border-left:3px solid var(--accent);padding:10px 12px;background:#242330;border-radius:0 9px 9px 0}
+.pill{display:inline-block;padding:3px 8px;border:1px solid var(--line);border-radius:20px;color:var(--muted);font-size:11px;margin-left:5px}
+footer{margin-top:20px;color:var(--muted);font-size:12px;line-height:1.6}
+@media(min-width:850px){.layout{grid-template-columns:minmax(270px, .78fr) minmax(0,1.5fr)}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="mark">📚</div><div><h1>AI Dungeon Master</h1><p>Local Reference Library · Prototype 0.2 <span class="pill">PDF links</span><span class="pill">Outline</span></p></div></header>
+
+<section class="panel">
+<h2>1. เพิ่มหนังสืออ้างอิง</h2>
+<p class="muted">เลือกไฟล์ PDF จากแอป Files บน iPad ไฟล์จะถูกอ่านในเบราว์เซอร์นี้โดยตรง ไม่มีการอัปโหลดหนังสือไปยังเซิร์ฟเวอร์</p>
+<div class="row">
+<label class="file-button" for="pdfFile">＋ เลือก PDF จาก Files</label>
+<input id="pdfFile" type="file" accept="application/pdf,.pdf">
+<button id="clearBtn" class="secondary" type="button" disabled>ล้างหนังสือ</button>
+</div>
+<div id="status" role="status" aria-live="polite">ยังไม่ได้เลือกหนังสือ</div>
+<div id="bookInfo"><strong id="bookName"></strong><div class="muted" id="bookMeta"></div></div>
+</section>
+
+<div class="layout">
+<div>
+<section class="panel">
+<h2>2. สารบัญ / Bookmarks</h2>
+<div id="outlineList" class="muted">สารบัญจาก PDF จะแสดงที่นี่ หากหนังสือมีข้อมูล Bookmarks</div>
+</section>
+<section class="panel">
+<h2>3. ค้นหาข้อมูลในหนังสือ</h2>
+<input id="searchBox" type="search" placeholder="ค้นหา เช่น Grappled, Concentration…" disabled>
+<p class="muted">ค้นหาข้อความในทุกหน้า แตะผลลัพธ์เพื่อเปิดหน้าที่พบ</p>
+<div id="results" class="muted">ผลการค้นหาจะแสดงที่นี่</div>
+</section>
+<section class="panel">
+<h2>4. ข้อมูลอ้างอิงสำหรับ AI DM</h2>
+<p class="muted">ส่วนนี้เป็นโครงสร้างเริ่มต้นสำหรับเก็บรายการอ้างอิงด้วยตนเองในเบราว์เซอร์ ยังไม่ได้เชื่อม AI หรือฐานข้อมูลถาวร</p>
+<div class="row"><input id="refTitle" type="text" placeholder="ชื่อกฎ / หัวข้อ" aria-label="ชื่อกฎหรือหัวข้อ"></div>
+<div class="row" style="margin-top:8px"><input id="refPage" type="text" inputmode="numeric" placeholder="เลขหน้า PDF" aria-label="เลขหน้า PDF" style="max-width:140px"><button id="saveRefBtn" type="button" disabled>＋ บันทึกอ้างอิง</button></div>
+<div id="savedRefs" class="muted" style="margin-top:10px">ยังไม่มีรายการอ้างอิง</div>
+</section>
+</div>
+
+<section class="panel">
+<h2>5. อ่านหน้าหนังสือ</h2>
+<div id="pageControls">
+<button id="prevBtn" class="secondary" type="button">ก่อนหน้า</button>
+<span id="pageLabel">หน้า 0 / 0</span>
+<button id="nextBtn" class="secondary" type="button">ถัดไป</button>
+</div>
+<div id="viewerWrap"><div id="pageStage"><canvas id="pageCanvas"></canvas><div id="linkLayer"></div></div></div>
+<div id="pageText" class="muted">เมื่อเลือกหนังสือแล้ว สามารถเปิดดูแต่ละหน้าได้</div>
+<p class="muted">ลิงก์ภายใน PDF จะแสดงกรอบสีฟ้าเมื่อแตะ/ชี้ และกดเพื่อกระโดดไปยังหน้าเป้าหมายได้ ลิงก์เว็บไซต์ภายนอกจะเปิดแท็บใหม่</p>
+</section>
+</div>
+
+<section class="panel">
+<h2>ขอบเขต V2</h2>
+<div class="note muted">V2 เพิ่มชั้นลิงก์ Annotation สำหรับลิงก์ภายในและภายนอก PDF, สารบัญ Bookmarks และรายการอ้างอิงหัวข้อ/เลขหน้าแบบ local ในหน้าเว็บ</div>
+<ul class="muted">
+<li>ยังค้นหาได้เฉพาะ PDF ที่มีข้อความฝังอยู่ หากเป็นภาพสแกนต้องเพิ่ม OCR</li>
+<li>รายการอ้างอิงที่บันทึกใน V2 เก็บไว้ในหน่วยความจำของหน้าเว็บเท่านั้น รีเฟรชแล้วหาย</li>
+<li>ยังไม่ได้เชื่อมโมเดล AI, การตัดสินกฎ, แคมเปญ หรือตัวละคร</li>
+<li>ต้องเชื่อมต่ออินเทอร์เน็ตเพื่อโหลด PDF.js จาก CDN</li>
+</ul>
+</section>
+<footer>Prototype 0.2 · PDF.js 4.10.38 · ประมวลผล PDF ในเบราว์เซอร์ของผู้ใช้</footer>
+</main>
+
+<script type="module">
+import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+const $ = id => document.getElementById(id);
+let pdf=null, pages=[], currentPage=1, fileName='', references=[];
+const fileInput=$('pdfFile');
+function setStatus(s){$('status').textContent=s;}
+function cleanText(items){return items.map(x=>x.str).join(' ').replace(/[ \\t]+/g,' ').trim();}
+function safePage(n){return Number.isInteger(n)&&n>=1&&pdf&&n<=pdf.numPages;}
+async function loadPdf(file){
+ if(!file)return;
+ if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf')){setStatus('ไฟล์นี้ไม่ใช่ PDF กรุณาเลือกไฟล์ .pdf');return;}
+ try{
+  setStatus('กำลังเปิด PDF และอ่านดัชนีข้อความ…');$('searchBox').disabled=true;$('saveRefBtn').disabled=true;$('results').textContent='กำลังอ่านข้อความแต่ละหน้า…';
+  const bytes=await file.arrayBuffer();pdf=await pdfjsLib.getDocument({data:bytes}).promise;fileName=file.name;pages=new Array(pdf.numPages);
+  $('bookName').textContent=file.name;$('bookMeta').textContent=`${pdf.numPages} หน้า · ${(file.size/1024/1024).toFixed(1)} MB`;$('bookInfo').style.display='block';$('clearBtn').disabled=false;
+  for(let n=1;n<=pdf.numPages;n++){const page=await pdf.getPage(n);const content=await page.getTextContent();pages[n-1]=cleanText(content.items);if(n%10===0||n===pdf.numPages)setStatus(`กำลังสร้างดัชนี ${n} / ${pdf.numPages} หน้า…`);}
+  $('searchBox').disabled=false;$('saveRefBtn').disabled=false;$('searchBox').value='';$('results').textContent='อ่าน PDF สำเร็จ เริ่มค้นหาคำหรือชื่อกฎได้เลย';await loadOutline();await showPage(1);setStatus(`พร้อมใช้งาน: ${file.name} · อ่านข้อความแล้ว ${pages.filter(Boolean).length} หน้า`);
+ }catch(err){console.error(err);setStatus('เปิด PDF ไม่สำเร็จ: '+(err?.message||'เกิดข้อผิดพลาด'));$('results').textContent='ไม่สามารถอ่านไฟล์นี้ได้ โปรดลองเลือก PDF อีกครั้ง';}
+}
+async function resolvePageNumber(dest){
+ try{const resolved=typeof dest==='string'?await pdf.getDestination(dest):dest;if(!resolved||!resolved[0])return null;const index=await pdf.getPageIndex(resolved[0]);return index+1;}catch(e){return null;}
+}
+async function loadOutline(){
+ const host=$('outlineList');host.replaceChildren();
+ try{
+  const outline=await pdf.getOutline();
+  if(!outline||!outline.length){host.textContent='PDF นี้ไม่มีข้อมูลสารบัญ / Bookmarks';return;}
+  const addItems=(items,depth=0)=>{
+   for(const item of items||[]){
+    const row=document.createElement('div');row.className='outline-item';row.style.paddingLeft=(10+depth*16)+'px';row.textContent=item.title||'หัวข้อไม่มีชื่อ';row.tabIndex=0;
+    const go=async()=>{const n=await resolvePageNumber(item.dest);if(n)await showPage(n);else setStatus('รายการสารบัญนี้ไม่มีปลายทางหน้าที่อ่านได้');};
+    row.addEventListener('click',go);row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});host.appendChild(row);if(item.items?.length)addItems(item.items,depth+1);
+   }
+  };addItems(outline);
+ }catch(e){host.textContent='อ่านสารบัญ PDF ไม่สำเร็จ';}
+}
+async function drawLinks(page,viewport){
+ const layer=$('linkLayer');layer.replaceChildren();layer.style.width=viewport.width+'px';layer.style.height=viewport.height+'px';
+ let annotations=[];try{annotations=await page.getAnnotations({intent:'display'});}catch(e){return;}
+ for(const a of annotations){
+  if(a.subtype!=='Link'||!a.rect)continue;
+  const rect=viewport.convertToViewportRectangle(a.rect);const left=Math.min(rect[0],rect[2]),top=Math.min(rect[1],rect[3]),width=Math.abs(rect[0]-rect[2]),height=Math.abs(rect[1]-rect[3]);
+  if(width<1||height<1)continue;
+  const el=document.createElement('a');el.className='pdf-link';el.style.left=left+'px';el.style.top=top+'px';el.style.width=width+'px';el.style.height=height+'px';el.setAttribute('aria-label','ลิงก์ในเอกสาร PDF');
+  if(a.url){
+   try{const u=new URL(a.url);if(u.protocol==='http:'||u.protocol==='https:'){el.href=u.href;el.target='_blank';el.rel='noopener noreferrer';el.title='เปิดเว็บไซต์ภายนอก';}else continue;}catch(e){continue;}
+  }else if(a.dest){
+   el.href='#';el.title='ไปยังตำแหน่งที่เชื่อมโยงใน PDF';el.addEventListener('click',async e=>{e.preventDefault();const n=await resolvePageNumber(a.dest);if(n)await showPage(n);else setStatus('ไม่สามารถเปิดปลายทางของลิงก์นี้ได้');});
+  }else if(a.action==='GoTo'&&a.dest){
+   el.href='#';el.addEventListener('click',async e=>{e.preventDefault();const n=await resolvePageNumber(a.dest);if(n)await showPage(n);});
+  }else continue;
+  layer.appendChild(el);
+ }
+}
+async function showPage(n){
+ if(!pdf||n<1||n>pdf.numPages)return;currentPage=n;
+ const page=await pdf.getPage(n),viewport=page.getViewport({scale:1.35}),canvas=$('pageCanvas'),ctx=canvas.getContext('2d');
+ canvas.width=viewport.width;canvas.height=viewport.height;canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';
+ await page.render({canvasContext:ctx,viewport}).promise;await drawLinks(page,viewport);
+ $('viewerWrap').style.display='block';$('pageControls').style.display='flex';$('pageLabel').textContent=`หน้า ${n} / ${pdf.numPages}`;$('pageText').textContent=pages[n-1]||'หน้านี้ไม่มีข้อความที่ดึงได้ อาจเป็นภาพสแกน';$('prevBtn').disabled=n===1;$('nextBtn').disabled=n===pdf.numPages;
+}
+function search(){
+ const q=$('searchBox').value.trim().toLocaleLowerCase();if(!q){$('results').textContent='พิมพ์คำที่ต้องการค้นหา';return;}if(!pages.length)return;
+ const matches=[];pages.forEach((text,i)=>{const lower=(text||'').toLocaleLowerCase();const at=lower.indexOf(q);if(at>=0){const start=Math.max(0,at-130),end=Math.min(text.length,at+q.length+220);matches.push({page:i+1,snippet:(start?'…':'')+text.slice(start,end)+(end<text.length?'…':'')});}});
+ const host=$('results');host.replaceChildren();if(!matches.length){host.textContent='ไม่พบคำนี้ในข้อความที่อ่านได้ (หากเป็น PDF สแกน อาจต้องใช้ OCR)';return;}
+ const heading=document.createElement('div');heading.className='muted';heading.style.padding='9px 0';heading.textContent=`พบ ${matches.length} หน้า`;host.appendChild(heading);
+ matches.slice(0,150).forEach(m=>{const item=document.createElement('div');item.className='result';item.tabIndex=0;const strong=document.createElement('strong');strong.textContent=`หน้า ${m.page}`;const p=document.createElement('p');p.textContent=m.snippet;item.append(strong,p);item.addEventListener('click',()=>showPage(m.page));item.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showPage(m.page);}});host.appendChild(item);});
+}
+function renderRefs(){
+ const host=$('savedRefs');host.replaceChildren();if(!references.length){host.textContent='ยังไม่มีรายการอ้างอิง';return;}
+ references.forEach((r,i)=>{const row=document.createElement('div');row.className='result';const title=document.createElement('strong');title.textContent=r.title;const detail=document.createElement('p');detail.textContent=`${fileName} · หน้า ${r.page}`;row.append(title,detail);row.addEventListener('click',()=>showPage(r.page));host.appendChild(row);});
+}
+$('saveRefBtn').addEventListener('click',()=>{
+ const title=$('refTitle').value.trim(),pageNum=Number($('refPage').value.trim());
+ if(!title){setStatus('กรุณาใส่ชื่อกฎหรือหัวข้อก่อนบันทึก');return;}
+ if(!safePage(pageNum)){setStatus('กรุณาใส่เลขหน้าที่อยู่ในช่วงของ PDF');return;}
+ references.push({title,page:pageNum});$('refTitle').value='';$('refPage').value='';renderRefs();setStatus('บันทึกรายการอ้างอิงไว้ในหน้านี้แล้ว');
+});
+fileInput.addEventListener('change',e=>{references=[];renderRefs();loadPdf(e.target.files?.[0]);});
+$('searchBox').addEventListener('input',search);$('prevBtn').addEventListener('click',()=>showPage(currentPage-1));$('nextBtn').addEventListener('click',()=>showPage(currentPage+1));
+$('clearBtn').addEventListener('click',()=>{
+ pdf=null;pages=[];currentPage=1;fileName='';references=[];$('bookInfo').style.display='none';$('viewerWrap').style.display='none';$('pageControls').style.display='none';$('pageText').textContent='เมื่อเลือกหนังสือแล้ว สามารถเปิดดูแต่ละหน้าได้';$('outlineList').textContent='สารบัญจาก PDF จะแสดงที่นี่ หากหนังสือมีข้อมูล Bookmarks';$('searchBox').value='';$('searchBox').disabled=true;$('results').textContent='ผลการค้นหาจะแสดงที่นี่';$('saveRefBtn').disabled=true;$('clearBtn').disabled=true;fileInput.value='';renderRefs();setStatus('ล้างหนังสือปัจจุบันแล้ว');
+});
+</script>
+</body>
+</html>
