@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#171923">
+<title>AI Dungeon Master — Reference Library Prototype</title>
+<style>
+:root{color-scheme:dark;--bg:#11131a;--panel:#1b1e29;--line:#303545;--muted:#aab1c2;--accent:#c7a56a;--text:#f4f2ed}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:900px;margin:auto;padding:22px 16px 48px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:20px}header .mark{font-size:30px}h1{font-size:21px;margin:0}header p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin:14px 0}
+h2{font-size:16px;margin:0 0 12px}
+button,.file-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:#171717;border:0;border-radius:11px;padding:12px 16px;font-weight:700;font-size:15px;cursor:pointer}
+button.secondary{background:#34394a;color:var(--text)}button:disabled{opacity:.45;cursor:not-allowed}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.muted{color:var(--muted);font-size:13px;line-height:1.5}
+#status{margin-top:12px;color:#d8c49d;font-size:14px;line-height:1.5}
+#bookInfo{display:none;margin-top:14px;padding:12px;background:#141722;border-radius:10px}
+input[type=search],input[type=number]{width:100%;background:#10131b;border:1px solid var(--line);border-radius:10px;color:var(--text);padding:12px;font-size:16px}
+.grid{display:grid;grid-template-columns:1fr;gap:14px}
+#results{max-height:420px;overflow:auto}
+.result{padding:12px;border-bottom:1px solid var(--line);cursor:pointer}.result:last-child{border:0}.result strong{color:var(--accent);font-size:13px}.result p{margin:6px 0 0;font-size:14px;line-height:1.5;white-space:pre-wrap}
+#viewerWrap{display:none;background:#30323b;border-radius:12px;padding:10px;text-align:center;overflow:auto}
+canvas{max-width:100%;height:auto;background:white;box-shadow:0 2px 12px #0008}
+#pageControls{display:none;align-items:center;justify-content:center;margin:10px 0;gap:10px}
+#pageLabel{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.note{border-left:3px solid var(--accent);padding:10px 12px;background:#242330;border-radius:0 9px 9px 0}
+footer{margin-top:24px;color:var(--muted);font-size:12px;line-height:1.6}
+@media(min-width:700px){.grid{grid-template-columns: minmax(0,1fr) minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="mark">📚</div><div><h1>AI Dungeon Master</h1><p>Local Reference Library · Prototype 0.1</p></div></header>
+
+<section class="panel">
+<h2>1. เพิ่มหนังสืออ้างอิง</h2>
+<p class="muted">เลือกไฟล์ PDF จากแอป Files บน iPad ไฟล์จะถูกอ่านในเบราว์เซอร์นี้โดยตรง ต้นฉบับจะไม่ถูกอัปโหลดไปยังเซิร์ฟเวอร์</p>
+<div class="row">
+<label class="file-button" for="pdfFile">＋ เลือก PDF จาก Files</label>
+<input id="pdfFile" type="file" accept="application/pdf,.pdf">
+<button id="clearBtn" class="secondary" type="button" disabled>ล้างหนังสือปัจจุบัน</button>
+</div>
+<div id="status" role="status" aria-live="polite">ยังไม่ได้เลือกหนังสือ</div>
+<div id="bookInfo">
+  <strong id="bookName"></strong>
+  <div class="muted" id="bookMeta"></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>2. ค้นหาข้อมูลในหนังสือ</h2>
+<input id="searchBox" type="search" placeholder="ค้นหา เช่น Beholder, Grappled, Concentration…" disabled>
+<p class="muted">ค้นหาจากข้อความที่ดึงได้ใน PDF พร้อมแสดงเลขหน้า แตะผลลัพธ์เพื่อเปิดหน้านั้น</p>
+<div id="results" class="muted">ผลการค้นหาจะแสดงที่นี่</div>
+</section>
+
+<section class="panel">
+<h2>3. อ่านหน้าหนังสือ</h2>
+<div id="pageControls">
+<button id="prevBtn" class="secondary" type="button">ก่อนหน้า</button>
+<span id="pageLabel">หน้า 0 / 0</span>
+<button id="nextBtn" class="secondary" type="button">ถัดไป</button>
+</div>
+<div id="viewerWrap"><canvas id="pageCanvas"></canvas></div>
+<div id="pageText" class="muted" style="margin-top:12px;white-space:pre-wrap">เมื่อเลือกหนังสือแล้ว สามารถเปิดดูแต่ละหน้าได้</div>
+</section>
+
+<section class="panel">
+<h2>ขอบเขตการทดสอบรุ่นนี้</h2>
+<div class="note muted">ต้นแบบนี้ทดสอบการเลือก PDF การอ่านหน้า การดึงข้อความ และการค้นหาในเครื่องก่อน ยังไม่ได้เชื่อม AI DM หรือฐานข้อมูลแคมเปญ</div>
+<ul class="muted">
+<li>PDF ที่มีข้อความฝังอยู่จะค้นหาได้</li>
+<li>PDF ที่เป็นภาพสแกนอาจไม่มีข้อความให้ค้นหา ต้องเพิ่ม OCR ในรุ่นถัดไป</li>
+<li>การเปิดไฟล์ต้องอาศัยการเลือกและอนุญาตจาก iPad Files</li>
+<li>ต้นแบบนี้ไม่อัปโหลด PDF และไม่ส่งเนื้อหาไป AI</li>
+<li>หากปิดแท็บหรือระบบล้างข้อมูล อาจต้องเลือกไฟล์ใหม่</li>
+</ul>
+</section>
+<footer>Prototype 0.1 · ใช้ PDF.js จาก CDN เพื่อแสดงผลและอ่านข้อความในเบราว์เซอร์ ต้องเชื่อมต่ออินเทอร์เน็ตขณะโหลดตัวอ่าน PDF ครั้งแรก</footer>
+</main>
+<script type="module">
+import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+
+const $ = id => document.getElementById(id);
+let pdf = null, pages = [], currentPage = 1, fileName = '';
+const fileInput = $('pdfFile');
+
+function setStatus(message){ $('status').textContent = message; }
+function cleanText(items){ return items.map(x => x.str).join(' ').replace(/[ \t]+/g,' ').trim(); }
+
+async function loadPdf(file){
+  if(!file) return;
+  if(file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')){
+    setStatus('ไฟล์นี้ไม่ใช่ PDF กรุณาเลือกไฟล์ .pdf'); return;
+  }
+  try{
+    setStatus('กำลังเปิด PDF และอ่านดัชนีข้อความ…');
+    $('searchBox').disabled = true;
+    $('results').textContent = 'กำลังอ่านข้อความแต่ละหน้า…';
+    const bytes = await file.arrayBuffer();
+    pdf = await pdfjsLib.getDocument({data:bytes}).promise;
+    fileName = file.name;
+    pages = new Array(pdf.numPages);
+    $('bookName').textContent = file.name;
+    $('bookMeta').textContent = `${pdf.numPages} หน้า · ${(file.size/1024/1024).toFixed(1)} MB`;
+    $('bookInfo').style.display = 'block';
+    $('clearBtn').disabled = false;
+    for(let n=1;n<=pdf.numPages;n++){
+      const page = await pdf.getPage(n);
+      const content = await page.getTextContent();
+      pages[n-1] = cleanText(content.items);
+      if(n % 10 === 0 || n === pdf.numPages) setStatus(`กำลังสร้างดัชนี ${n} / ${pdf.numPages} หน้า…`);
+    }
+    $('searchBox').disabled = false;
+    $('searchBox').value = '';
+    $('results').textContent = 'อ่าน PDF สำเร็จ เริ่มค้นหาคำหรือชื่อมอนสเตอร์ได้เลย';
+    currentPage = 1;
+    await showPage(1);
+    setStatus(`พร้อมใช้งาน: ${file.name} · อ่านข้อความแล้ว ${pages.filter(Boolean).length} หน้า`);
+  }catch(err){
+    console.error(err);
+    setStatus('เปิด PDF ไม่สำเร็จ: ' + (err?.message || 'เกิดข้อผิดพลาด'));
+    $('results').textContent = 'ไม่สามารถอ่านไฟล์นี้ได้ โปรดลองเลือก PDF อีกครั้ง';
+  }
+}
+async function showPage(n){
+  if(!pdf || n<1 || n>pdf.numPages) return;
+  currentPage=n;
+  const page=await pdf.getPage(n);
+  const viewport=page.getViewport({scale:1.35});
+  const canvas=$('pageCanvas'), ctx=canvas.getContext('2d');
+  canvas.width=viewport.width; canvas.height=viewport.height;
+  await page.render({canvasContext:ctx,viewport}).promise;
+  $('viewerWrap').style.display='block';
+  $('pageControls').style.display='flex';
+  $('pageLabel').textContent=`หน้า ${n} / ${pdf.numPages}`;
+  $('pageText').textContent=pages[n-1] || 'หน้านี้ไม่มีข้อความที่ดึงได้ อาจเป็นภาพสแกน';
+  $('prevBtn').disabled=n===1;
+  $('nextBtn').disabled=n===pdf.numPages;
+}
+function search(){
+  const q=$('searchBox').value.trim().toLocaleLowerCase();
+  if(!q){$('results').textContent='พิมพ์คำที่ต้องการค้นหา';return;}
+  if(!pages.length)return;
+  const matches=[];
+  pages.forEach((text,i)=>{
+    const lower=(text||'').toLocaleLowerCase();
+    let at=lower.indexOf(q);
+    if(at>=0){
+      const start=Math.max(0,at-130), end=Math.min(text.length,at+q.length+220);
+      matches.push({page:i+1,snippet:(start?'…':'')+text.slice(start,end)+(end<text.length?'…':'')});
+    }
+  });
+  $('results').innerHTML='';
+  if(!matches.length){$('results').textContent='ไม่พบคำนี้ในข้อความที่อ่านได้ (หากเป็น PDF สแกน อาจต้องใช้ OCR)';return;}
+  const heading=document.createElement('div');heading.className='muted';heading.style.padding='10px 0';heading.textContent=`พบ ${matches.length} หน้า`; $('results').appendChild(heading);
+  matches.slice(0,100).forEach(m=>{
+    const item=document.createElement('div');item.className='result';item.tabIndex=0;
+    const strong=document.createElement('strong');strong.textContent=`หน้า ${m.page}`;
+    const p=document.createElement('p');p.textContent=m.snippet;
+    item.append(strong,p);
+    item.addEventListener('click',()=>showPage(m.page));
+    item.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showPage(m.page)}});
+    $('results').appendChild(item);
+  });
+}
+fileInput.addEventListener('change',e=>loadPdf(e.target.files?.[0]));
+$('searchBox').addEventListener('input',search);
+$('prevBtn').addEventListener('click',()=>showPage(currentPage-1));
+$('nextBtn').addEventListener('click',()=>showPage(currentPage+1));
+$('clearBtn').addEventListener('click',()=>{
+  pdf=null;pages=[];currentPage=1;fileName='';
+  $('bookInfo').style.display='none';$('viewerWrap').style.display='none';$('pageControls').style.display='none';
+  $('pageText').textContent='เมื่อเลือกหนังสือแล้ว สามารถเปิดดูแต่ละหน้าได้';
+  $('searchBox').value='';$('searchBox').disabled=true;$('results').textContent='ผลการค้นหาจะแสดงที่นี่';
+  $('clearBtn').disabled=true;fileInput.value='';setStatus('ล้างหนังสือปัจจุบันแล้ว');
+});
+</script>
+</body>
+</html>
